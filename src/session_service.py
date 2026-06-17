@@ -6,11 +6,7 @@ from typing import Any
 
 from src.utils import load_sample_resume, read_text
 
-
-DEFAULT_USER_GOAL = (
-    "找一份 AI 应用开发 / AI Agent 方向的实习，偏好上海或杭州。"
-)
-DEFAULT_MESSAGE = "请帮我进行一次模拟面试。"
+DEFAULT_USER_GOAL = "找一份 AI 应用开发 / AI Agent 方向的实习，偏好上海或杭州。"
 
 
 def generate_thread_id() -> str:
@@ -38,9 +34,7 @@ def resolve_resume_text(
 
 def get_session_values(app, config: dict[str, Any]) -> dict[str, Any]:
     state = app.get_state(config)
-    if state.values:
-        return dict(state.values)
-    return {}
+    return dict(state.values) if state.values else {}
 
 
 def get_state_history_rows(
@@ -51,16 +45,16 @@ def get_state_history_rows(
     rows: list[dict[str, Any]] = []
     for snapshot in app.get_state_history(config, limit=limit):
         values = snapshot.values or {}
-        analyses = values.get("analyses", [])
-        matches = values.get("matches", [])
+        questions = values.get("questions", [])
+        evaluations = values.get("evaluations", [])
         rows.append({
             "created_at": str(snapshot.metadata.get("created_at", "")),
             "next": list(snapshot.next) if snapshot.next else [],
             "step": snapshot.metadata.get("step", -1),
             "source": snapshot.metadata.get("source", ""),
-            "analyses_count": len(analyses) if isinstance(analyses, list) else 0,
-            "matches_count": len(matches) if isinstance(matches, list) else 0,
+            "questions_count": len(questions),
+            "evaluations_count": len(evaluations),
             "has_final_report": bool(values.get("final_report")),
-            "optimization_round": values.get("optimization_round", 0),
+            "interview_round": values.get("interview_round", 0),
         })
     return rows

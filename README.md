@@ -76,8 +76,10 @@ python run_server.py
 │   └── utils.py          # 工具函数
 ├── backend/app/main.py   # FastAPI 后端 + 面试 API
 ├── frontend.html         # Vue 3 前端界面
-├── graph.html            # 状态图可视化
-└── run_server.py         # 一键启动脚本
+├── run_server.py         # 一键启动脚本
+└── docs/
+    ├── GRAPH.md          # 状态图 Mermaid 源码
+    └── graph.html        # 状态图可视化
 ```
 
 ## CLI 模式
