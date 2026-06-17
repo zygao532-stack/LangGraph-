@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>面试模拟系统 — LangGraph 状态图</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  h2 { color: #a78bfa; font-family: 'Segoe UI', sans-serif; margin-bottom: 6px; }
+  .subtitle { color: #777; font-size: 13px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<h2>面试模拟系统 — LangGraph 状态图</h2>
+<div class="subtitle">Supervisor 多Agent 架构 | 实线=执行返回 虚线=动态路由</div>
+<div class="mermaid">
+graph TD
+    START([__start__]):::first
+
+    SV["🧠 supervisor
+    Supervisor 调度中心"]
+
+    QD["📝 question_design_flow
+    出题子图 (并行3类)"]
+
+    AS["🎭 answer_simulator
+    LLM 模拟候选人回答"]
+
+    EV["📊 evaluation_flow
+    评估子图 (并行3题)"]
+
+    FU["🔄 follow_up_generator
+    低分追问 | 回路节点"]
+
+    FC["📋 feedback_coach
+    面试教练 | 生成报告"]
+
+    FN["🏁 finish_node
+    结束"]
+
+    ENDN([__end__]):::last
+
+    START --> SV
+
+    QD -->|聚合3道题| SV
+    AS -->|3份回答就绪| SV
+    EV -->|3份评分就绪| SV
+    FU -->|追问已生成| SV
+    FC -->|报告已生成| SV
+
+    SV -.->|Send 并行出题| QD
+    SV -.->|Command 跳转| AS
+    SV -.->|Send 并行评估| EV
+    SV -.->|不及格时触发| FU
+    SV -.->|全部达标| FC
+    SV -.->|报告已存在| FN
+
+    FN --> ENDN
+
+    classDef default fill:#1e1e3a,stroke:#7c3aed,color:#ccc
+    classDef first fill-opacity:0,stroke:none,color:#888
+    classDef last fill:#7c3aed,stroke:none,color:#fff
+</div>
+<script>
+mermaid.initialize({startOnLoad:true, theme:'dark'});
+</script>
+</body>
+</html>

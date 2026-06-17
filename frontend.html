@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>智能面试模拟与反馈系统</title>
+<script src="node_modules/vue/dist/vue.global.prod.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f1a;color:#e0e0e0;min-height:100vh}
+#app{max-width:800px;margin:0 auto;padding:24px}
+h1{color:#a78bfa;text-align:center;margin-bottom:8px;font-size:22px}
+.sub{text-align:center;color:#666;font-size:13px;margin-bottom:28px}
+.step{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:12px;padding:24px;margin-bottom:20px}
+.step h2{color:#7c3aed;font-size:17px;margin-bottom:16px}
+label{display:block;color:#999;font-size:13px;margin-bottom:6px}
+input,textarea{width:100%;padding:10px 14px;background:#111122;border:1px solid #333;border-radius:8px;color:#e0e0e0;font-size:14px;outline:none}
+textarea{resize:vertical;min-height:150px;font-family:monospace}
+input:focus,textarea:focus{border-color:#7c3aed}
+.btn{background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:15px;cursor:pointer;transition:.2s;width:100%;margin-top:14px}
+.btn:hover{background:#6d28d9}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.card{background:#111122;border:1px solid #2a2a4a;border-radius:10px;padding:20px;margin-bottom:16px}
+.tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;margin-bottom:10px}
+.tag-tech{background:#1e3a5f;color:#60a5fa}
+.tag-project{background:#1e3a1e;color:#4ade80}
+.tag-behavioral{background:#3a1e3a;color:#c084fc}
+.score-row{display:flex;align-items:center;gap:12px;padding:10px;background:#111122;border-radius:8px;margin-bottom:8px}
+.score-circle{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;flex-shrink:0}
+.sc-excellent{background:#065f46;color:#6ee7b7}
+.sc-good{background:#1e3a5f;color:#93c5fd}
+.sc-needs{background:#78350f;color:#fcd34d}
+.sc-poor{background:#7f1d1d;color:#fca5a5}
+.sc-info{flex:1;font-size:13px}
+.sc-info .t{color:#ccc}
+.sc-info .d{color:#888;font-size:12px;margin-top:4px}
+.report{background:#111122;border:1px solid #2a2a4a;border-radius:10px;padding:24px;white-space:pre-wrap;line-height:1.7;font-size:14px;max-height:65vh;overflow-y:auto}
+.loading{text-align:center;padding:40px;color:#666}
+.spinner{display:inline-block;width:28px;height:28px;border:3px solid #333;border-top-color:#7c3aed;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>智能面试模拟与反馈系统</h1>
+  <p class="sub">LangGraph 多Agent 协作 | Supervisor + Send 并行 + 追问回路</p>
+
+  <div class="step" v-if="step===1">
+    <h2>开始模拟面试</h2>
+    <label>求职目标</label>
+    <input v-model="userGoal" placeholder="例：找一份 AI Agent 开发实习">
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <span v-for="p in presets" @click="userGoal=p" style="cursor:pointer;padding:4px 10px;background:#1e1e3a;border:1px solid #333;border-radius:16px;font-size:12px;color:#999">{{p}}</span>
+    </div>
+    <label style="margin-top:14px">简历内容</label>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <label style="cursor:pointer;padding:6px 14px;background:#1e1e3a;border:1px solid #333;border-radius:8px;font-size:13px;color:#999;margin:0">
+        📎 上传简历文件（PDF/MD/TXT）
+        <input type="file" accept=".pdf,.md,.txt" @change="uploadFile" style="display:none">
+      </label>
+      <span v-if="uploading" style="color:#a78bfa;font-size:13px;align-self:center">解析中...</span>
+      <span v-if="uploadName" style="color:#4ade80;font-size:13px;align-self:center">{{uploadName}}</span>
+    </div>
+    <textarea v-model="resumeText" placeholder="粘贴简历内容，或上传 PDF/Markdown/TXT 文件"></textarea>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+      <label style="margin:0">最大追问轮次</label>
+      <input v-model.number="maxRounds" type="number" min="1" max="5" style="width:60px">
+    </div>
+    <button class="btn" @click="start" :disabled="loading">{{loading?'出题中...':'开始面试'}}</button>
+  </div>
+
+  <div class="step" v-if="step===2">
+    <h2>第 {{round+1}} 轮面试</h2>
+    <div class="card" v-for="(q,i) in questions" :key="q.question_id">
+      <span :class="'tag tag-'+(q.category==='technical'?'tech':q.category==='project_deep_dive'?'project':'behavioral')">
+        {{q.category==='technical'?'技术题':q.category==='project_deep_dive'?'项目深挖':'行为题'}}
+      </span>
+      <p style="margin-bottom:12px;line-height:1.5">{{q.question_text}}</p>
+      <textarea v-model="answers[i]" placeholder="输入你的回答..." style="min-height:100px"></textarea>
+    </div>
+    <button class="btn" @click="submit" :disabled="loading||answers.some(function(a){return !a})">{{loading?'评估中...':'提交回答'}}</button>
+  </div>
+
+  <div class="step" v-if="step===3">
+    <h2>本轮评估结果</h2>
+    <div class="score-row" v-for="e in lastEvals" :key="e.question_id">
+      <div :class="'score-circle sc-'+(e.score>=85?'excellent':e.score>=70?'good':e.score>=60?'needs':'poor')">{{e.score}}</div>
+      <div class="sc-info">
+        <div class="t">{{getQText(e.question_id)}}</div>
+        <div class="d">{{e.verdict==='excellent'?'优秀':e.verdict==='good'?'良好':e.verdict==='needs_improvement'?'需改进':'不及格'}} | {{(e.strengths||[]).slice(0,2).join('；')}}</div>
+      </div>
+    </div>
+    <div v-if="nextQs&amp;&amp;nextQs.length" style="margin-top:16px">
+      <p style="color:#fcd34d;margin-bottom:10px">以下题目需重新作答：</p>
+      <button class="btn" @click="goNext">进入追问环节</button>
+    </div>
+    <div v-if="!nextQs||(nextQs&amp;&amp;nextQs.length===0)" style="margin-top:16px">
+      <p style="color:#4ade80;margin-bottom:10px">所有题目评估完成，正在生成报告...</p>
+      <span class="spinner"></span>
+    </div>
+  </div>
+
+  <div class="step" v-if="step===4">
+    <h2>面试反馈报告</h2>
+    <div class="score-row" v-for="e in lastEvals" :key="e.question_id" style="margin-bottom:16px">
+      <div :class="'score-circle sc-'+(e.score>=85?'excellent':e.score>=70?'good':e.score>=60?'needs':'poor')">{{e.score}}</div>
+      <div class="sc-info">
+        <div class="t">{{getQText(e.question_id)}}</div>
+        <div class="d">{{e.verdict==='excellent'?'优秀':e.verdict==='good'?'良好':e.verdict==='needs_improvement'?'需改进':'不及格'}}</div>
+      </div>
+    </div>
+    <div class="report" v-html="reportHtml"></div>
+    <button class="btn" @click="reset">重新开始</button>
+  </div>
+</div>
+
+<script>
+var API='';
+var app=Vue.createApp({
+  data:function(){
+    return{
+      step:1,loading:false,uploading:false,uploadName:'',threadId:'',round:0,
+      presets:['找一份 AI Agent 开发实习','找一份 Python 后端开发实习','找一份大模型应用开发实习','找一份数据分析实习','找一份前端开发实习'],
+      userGoal:'找一份 AI 应用开发 / AI Agent 方向的实习，偏好上海或杭州。',
+      resumeText:'计算机专业研究生，Python、LangChain、LangGraph。\n项目：LangGraph 多Agent工作流系统、智能问答助手。\n技能：Python, Java, LangGraph, FastAPI, SQLite。',
+      maxRounds:2,
+      questions:[],answers:[],allQs:[],lastEvals:[],nextQs:null,report:''
+    }
+  },
+  computed:{
+    reportHtml:function(){
+      var r=this.report||'';
+      return r.replace(/\n/g,'<br>').replace(/## (.+)/g,'<h3 style="color:#a78bfa;margin:16px 0 8px">$1</h3>');
+    }
+  },
+  methods:{
+    start:function(){
+      var self=this;self.loading=true;
+      fetch(API+'/api/interview/start',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({user_goal:self.userGoal,resume_text:self.resumeText,max_rounds:self.maxRounds})
+      }).then(function(r){return r.json()}).then(function(d){
+        self.threadId=d.thread_id;self.questions=d.questions;
+        self.allQs=d.questions;self.answers=d.questions.map(function(){return ''});
+        self.round=0;self.step=2;
+      }).catch(function(e){alert('启动失败：'+e.message)}).finally(function(){self.loading=false});
+    },
+    submit:function(){
+      var self=this;self.loading=true;
+      fetch(API+'/api/interview/submit',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({thread_id:self.threadId,answers:self.questions.map(function(q,i){
+          return{question_id:q.question_id,answer_text:self.answers[i]||''}
+        })})
+      }).then(function(r){return r.json()}).then(function(d){
+        self.lastEvals=d.evaluations||[];
+        if(d.status==='waiting_for_answer'){
+          // 需要追问
+          self.nextQs=d.questions;self.step=3;self.loading=false;
+        }else{
+          // 评估完成，立即显示评分，然后异步请求报告
+          self.step=3;self.loading=false;
+          self.loadReport();
+        }
+      }).catch(function(e){alert('提交失败：'+e.message);self.loading=false});
+    },
+    loadReport:function(){
+      var self=this;
+      fetch(API+'/api/interview/'+self.threadId+'/report',{method:'POST'})
+        .then(function(r){return r.json()})
+        .then(function(d){self.report=d.report||'';self.step=4})
+        .catch(function(e){console.error(e);self.step=4});
+    },
+    goNext:function(){
+      this.questions=this.nextQs;this.allQs=this.allQs.concat(this.nextQs);
+      this.answers=this.nextQs.map(function(){return ''});this.nextQs=null;
+      this.lastEvals=[];this.round++;this.step=2;
+    },
+    uploadFile:function(e){
+      var self=this;var file=e.target.files[0];if(!file)return;
+      self.uploading=true;self.uploadName='';
+      var fd=new FormData();fd.append('file',file);
+      fetch(API+'/api/upload-resume',{method:'POST',body:fd})
+        .then(function(r){return r.json()})
+        .then(function(d){self.resumeText=d.text||'';self.uploadName=file.name})
+        .catch(function(e){alert('上传失败：'+e.message)})
+        .finally(function(){self.uploading=false});
+    },
+    getQText:function(id){var q=this.allQs.find(function(x){return x.question_id===id});return q?(q.question_text||'').slice(0,50)+'...':id},
+    reset:function(){this.step=1;this.threadId='';this.questions=[];this.answers=[];this.allQs=[];this.lastEvals=[];this.nextQs=null;this.report='';this.round=0}
+  }
+});
+app.mount('#app');
+</script>
+</body>
+</html>

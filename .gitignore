@@ -1,0 +1,35 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# API 密钥（绝对不能上传）
+.env
+
+# 本地数据
+checkpoints/
+*.sqlite
+
+# Node (frontend.html 需要 Vue，clone 后手动 npm install vue@3)
+node_modules/
+frontend/node_modules/
+package-lock.json
+package.json
+
+# 杂项
+img.png
+*.png
+*.jpg
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.log
