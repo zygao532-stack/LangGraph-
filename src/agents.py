@@ -80,7 +80,19 @@ def supervisor_decide(payload: str) -> dict[str, Any]:
 # ── Question Designer ───────────────────────────────────────
 
 def design_question(category: str, user_goal: str, resume_text: str) -> dict[str, Any]:
-    prompt = f"""请为「{category}」类别设计一道面试题。
+    # RAG：从面经知识库检索相关内容，让题目更贴近真实面试
+    knowledge_context = ""
+    try:
+        from src.rag import search_knowledge, is_indexed, build_index
+        if not is_indexed():
+            build_index()
+        results = search_knowledge(f"{user_goal} {category} 面试题", n_results=3)
+        if results:
+            knowledge_context = "\n\n---\n面经知识库参考（请结合以下真实面试题设计）：\n" + "\n".join(results)
+    except Exception:
+        pass  # RAG 不可用时降级为纯 LLM 出题
+
+    prompt = f"""请为「{category}」类别设计一道面试题。{knowledge_context}
 
 候选人求职目标：
 {user_goal}

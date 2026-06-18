@@ -24,6 +24,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 app = FastAPI(title="智能面试模拟与反馈系统 API", version="1.0.0")
 
+@app.on_event("startup")
+def _startup_index():
+    try:
+        from src.rag import build_index, is_indexed
+        if not is_indexed():
+            count = build_index()
+            print(f"[RAG] 知识库索引完成：{count} 条")
+        else:
+            print(f"[RAG] 知识库已就绪")
+    except Exception as e:
+        print(f"[RAG] 索引失败（降级为纯 LLM 出题）：{e}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -17,6 +17,9 @@ frontend/node_modules/
 package-lock.json
 package.json
 
+# ChromaDB 向量数据库本地文件
+data/chroma_db/
+
 # 杂项
 img.png
 *.png
